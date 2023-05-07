@@ -1,0 +1,34 @@
+using WAV, Interpolations, DSP
+
+function calculate_frequency_list(engine_speed::Int, num_cylinders::Int)
+    # Calculate the fundamental frequency based on the engine speed and number of cylinders
+    fundamental_frequency = (engine_speed / 60) * (num_cylinders / 2)
+
+    # Create an array of harmonics based on the fundamental frequency
+    harmonics = [fundamental_frequency]
+    for i in 2:10
+        push!(harmonics, fundamental_frequency * i)
+    end
+
+    return harmonics
+end
+
+function create_sound_file(frequency_list::Vector{Float64}, duration::Float64, filename::String)
+    # Set up the sampling rate and time vector
+    fs = 44100
+    t = collect(range(0, stop=duration, length=fs*duration))
+
+    # Set up the waveform as a sum of sine waves
+    waveform = sum([sin.(2*pi*f.*t) for f in frequency_list])
+
+    # Rescale the waveform to -1 to 1 and write it to a WAV file
+    waveform = waveform ./ maximum(abs.(waveform))
+    wavwrite(waveform, fs, filename)
+
+    # Convert the WAV file to an MP3 file using FFMPEG
+    mp3_filename = replace(filename, ".wav" => ".mp3")
+    run(`ffmpeg -i $filename -codec:a libmp3lame -qscale:a 2 $mp3_filename`)
+
+    # Delete the WAV file
+    rm(filename)
+end
